@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reddit Book Review Analyzer</title>
     <style>
-       
         :root {
             /* Color Variables */
             --neutral-dark: #495057;
@@ -60,7 +59,7 @@
             border: 1px solid var(--border-color);
         }
 
-        
+
         h1 {
             text-align: center;
             color: var(--text-color);
@@ -75,7 +74,7 @@
             color: var(--text-color);
             font-weight: 600;
             border-bottom: 1px solid var(--border-color);
-            
+
             padding-bottom: 8px;
         }
 
@@ -88,7 +87,7 @@
             margin-bottom: 30px;
         }
 
-        
+
         #reviewForm {
             display: flex;
             gap: 10px;
@@ -308,7 +307,7 @@
             border-left-color: #adb5bd;
         }
 
-        
+
         @media (max-width: 600px) {
             body {
                 padding: 10px;
@@ -370,10 +369,10 @@
     </div>
 
     <script>
-       
+
         document.getElementById('reviewForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const searchQuery = document.getElementById('searchQuery').value;
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '<div class="loading">⏳ Analyzing Reddit reviews... Please wait.</div>';
@@ -396,7 +395,7 @@
                     } else {
                         resultsDiv.innerHTML = `<div class="error">⚠️ Error: ${errorMsg}</div>`;
                     }
-                    return; 
+                    return;
                 }
 
 
@@ -404,7 +403,7 @@
                 let html = '';
                 html += `<h2>Analysis Results for "${data.search_query}"</h2>`;
 
-                
+
                 if (data.sentiment && data.sentiment.success) {
                     const sentiment = data.sentiment;
 
@@ -480,7 +479,7 @@
                         // If posts were analyzed but none made it to 'top_posts'
                         html += '<p style="color: var(--text-muted);">No specific top posts to display based on current criteria (e.g., score).</p>';
                     }
-                
+
 
                 } else if (sentiment && sentiment.error) {
                     // Handle case where sentiment analysis failed
@@ -488,7 +487,7 @@
                 } else if (data.message) {
                     // Handle case where no posts were found
                     html += `<div class="info-message">ℹ️ ${data.message}</div>`;
-                    
+
                 } else if (!data.sentiment) {
                     // Handle case where sentiment key is missing entirely
                     html += `<div class="error">⚠️ Analysis response missing sentiment data.</div>`;

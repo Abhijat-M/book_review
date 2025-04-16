@@ -9,3 +9,4 @@ werkzeug==2.3.7
 matplotlib==3.7.1
 seaborn==0.12.2
 textblob==0.17.1 
+gunicorn
