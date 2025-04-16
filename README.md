@@ -2,6 +2,10 @@
 
 This project analyzes Reddit sentiment towards books. It uses natural language processing to analyze Reddit posts and comments mentioning specific books or authors and summarizes the overall sentiment.
 
+## Live Project
+
+Check out the live project here: [https://your-live-project-link.com](https://your-live-project-link.com)
+
 ## Setup
 
 1. Install the required dependencies:
@@ -35,8 +39,4 @@ This project analyzes Reddit sentiment towards books. It uses natural language p
 - Fetches Reddit posts and comments mentioning specific books or authors.
 - Analyzes sentiment using natural language processing.
 - Provides an overall sentiment summary (Positive, Negative, Neutral).
-- Displays relevant Reddit posts with their individual sentiment scores.
-
-## Note
-
-This is a project for educational purposes to demonstrate sentiment analysis on text data. The accuracy of sentiment depends heavily on the quality and quantity of Reddit data found.
+- Displays relevant Reddit
