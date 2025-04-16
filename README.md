@@ -31,7 +31,7 @@ Check out the live project here: [https://book-sentiment-analysis.onrender.com/]
     Or run the web application:
 
     ```bash
-    python src/app.py
+    python app.py
     ```
 
 ## Features
