@@ -307,6 +307,41 @@
             border-left-color: #adb5bd;
         }
 
+        /* --- Added Styles for Category Sections --- */
+        .post-category-section {
+            margin-top: 30px;
+        }
+
+        .post-category-section h3 {
+            /* Use a different background or border to distinguish categories */
+            background-color: var(--light-gray-bg);
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            border-left: 5px solid var(--border-color);
+            /* Default border */
+            margin-bottom: 20px;
+            /* Space below header */
+            border-bottom: none;
+            /* Remove the default h3 border-bottom */
+        }
+
+        .post-category-section.positive h3 {
+            border-left-color: #28a745;
+        }
+
+        /* Green */
+        .post-category-section.neutral h3 {
+            border-left-color: #adb5bd;
+        }
+
+        /* Gray */
+        .post-category-section.negative h3 {
+            border-left-color: #dc3545;
+        }
+
+        /* Red */
+        /* --- End Added Styles --- */
+
 
         @media (max-width: 600px) {
             body {
@@ -370,6 +405,66 @@
 
     <script>
 
+        // --- Helper function to render a list of posts ---
+        function renderPosts(posts, category) {
+            let postsHtml = '';
+            if (!posts || posts.length === 0) {
+                // Display message inline if no posts for the category
+                return `<p style="color: var(--text-muted); padding-left: 15px;">No ${category} posts found.</p>`;
+            }
+
+            posts.forEach(post => {
+                // Determine sentiment class based on VADER score ranges
+                let sentimentClass = 'neutral';
+                let sentimentText = 'Neutral';
+                // Use the sentiment_category from the backend if available, otherwise calculate
+                if (post.sentiment_category) {
+                    sentimentClass = post.sentiment_category;
+                    sentimentText = sentimentClass.charAt(0).toUpperCase() + sentimentClass.slice(1);
+                } else if (post.sentiment >= 0.05) {
+                    sentimentClass = 'positive'; sentimentText = 'Positive';
+                } else if (post.sentiment <= -0.05) {
+                    sentimentClass = 'negative'; sentimentText = 'Negative';
+                }
+
+                // Format sentiment score as percentage
+                let sentimentScoreText = (post.sentiment * 100).toFixed(1) + '%';
+                let postDate = 'Date N/A';
+                // Safely format date
+                try {
+                    if (post.created_utc) {
+                        // Attempt to parse different possible date formats from backend
+                        postDate = new Date(post.created_utc).toLocaleDateString();
+                    }
+                } catch (dateError) { console.error("Error parsing date:", post.created_utc, dateError); }
+
+                // Use CSS classes for border colors
+                postsHtml += `<div class="post ${sentimentClass}">`;
+                // Link to the Reddit post
+                postsHtml += `<div class="post-title"><a href="${post.url || '#'}" target="_blank" rel="noopener noreferrer">${post.title || 'No Title'}</a></div>`;
+                // Post metadata
+                postsHtml += `<div class="post-meta">`;
+                postsHtml += `<span>r/${post.subreddit || 'unknown'}</span>`;
+                postsHtml += `<span>${postDate}</span>`;
+                postsHtml += `<span>Reddit Score: ${post.score !== undefined ? post.score : 'N/A'}</span>`;
+                // Display sentiment score and category text
+                postsHtml += `<span><span class="sentiment-label">Sentiment: </span><span class="sentiment-value">${sentimentScoreText} (${sentimentText})</span></span>`;
+                postsHtml += `</div>`; // End post-meta
+
+                // Display post text (cleaned)
+                if (post.text) {
+                    // Basic sanitization to prevent HTML injection
+                    const sanitizedText = post.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    postsHtml += `<div class="post-text">${sanitizedText}</div>`;
+                } else if (post.url && !post.text) {
+                    postsHtml += `<div class="post-text" style="color: var(--text-muted);"><i>(Link post, content on Reddit)</i></div>`;
+                }
+                postsHtml += '</div>'; // End post
+            });
+            return postsHtml;
+        }
+
+
         document.getElementById('reviewForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -389,7 +484,7 @@
                 // Check for errors passed in the JSON response first
                 if (!response.ok || data.error) {
                     let errorMsg = data.error || `Server error: ${response.status}`;
-                    // Display specific message if no posts were found but it wasn't a server error
+                    // Use the specific message from the backend if available (e.g., "No posts found")
                     if (data.message && response.ok) {
                         resultsDiv.innerHTML = `<div class="info-message">ℹ️ ${data.message}</div>`;
                     } else {
@@ -398,8 +493,7 @@
                     return;
                 }
 
-
-                // --- Display logic updated for book reviews ---
+                // --- Display logic updated for categorized posts ---
                 let html = '';
                 html += `<h2>Analysis Results for "${data.search_query}"</h2>`;
 
@@ -407,9 +501,9 @@
                 if (data.sentiment && data.sentiment.success) {
                     const sentiment = data.sentiment;
 
-                    // Sentiment Summary Card
+                    // Sentiment Summary Card (Keep as is)
                     html += '<div class="sentiment-summary">';
-                    html += '<h3>Reddit Sentiment Summary</h3>';
+                    html += '<h3>Reddit Sentiment Summary</h3>'; // This h3 remains distinct
                     if (sentiment.average_sentiment !== undefined && sentiment.average_sentiment !== null) {
                         let avgSentimentPercent = (sentiment.average_sentiment * 100).toFixed(1);
                         let overallSentimentText = "Neutral";
@@ -420,8 +514,6 @@
                         html += '<p><strong>Overall Sentiment:</strong> N/A</p>';
                     }
                     html += `<p><strong>Total Posts Analyzed:</strong> ${sentiment.post_count !== undefined ? sentiment.post_count : 'N/A'}</p>`;
-
-                    // Display sentiment distribution
                     if (sentiment.sentiment_distribution) {
                         const dist = sentiment.sentiment_distribution;
                         html += '<p><strong>Sentiment Distribution:</strong></p>';
@@ -433,61 +525,36 @@
                     }
                     html += '</div>'; // End sentiment-summary
 
-                    // Top/Relevant Posts Section
-                    if (sentiment.top_posts && sentiment.top_posts.length > 0) {
-                        html += '<h3>Relevant Reddit Posts</h3>';
-                        sentiment.top_posts.forEach(post => {
-                            // Determine sentiment class based on VADER score ranges
-                            let sentimentClass = 'neutral';
-                            let sentimentText = 'Neutral';
-                            if (post.sentiment >= 0.05) { sentimentClass = 'positive'; sentimentText = 'Positive'; }
-                            else if (post.sentiment <= -0.05) { sentimentClass = 'negative'; sentimentText = 'Negative'; }
-                            // Format sentiment score as percentage
-                            let sentimentScoreText = (post.sentiment * 100).toFixed(1) + '%';
-                            let postDate = 'Date N/A';
-                            // Safely format date
-                            try {
-                                if (post.created_utc) {
-                                    // Attempt to parse different possible date formats from backend
-                                    postDate = new Date(post.created_utc).toLocaleDateString();
-                                }
-                            } catch (dateError) { console.error("Error parsing date:", post.created_utc, dateError); }
+                    // --- Display categorized posts ---
+                    if (sentiment.post_count > 0) {
+                        // Positive Posts Section
+                        html += `<div class="post-category-section positive">`;
+                        // Include post count in the heading
+                        html += `<h3>Positive Posts (${sentiment.positive_posts?.length || 0})</h3>`;
+                        html += renderPosts(sentiment.positive_posts, 'positive');
+                        html += `</div>`;
 
-                            // Use CSS classes for border colors
-                            html += `<div class="post ${sentimentClass}">`;
-                            // Link to the Reddit post
-                            html += `<div class="post-title"><a href="${post.url || '#'}" target="_blank" rel="noopener noreferrer">${post.title || 'No Title'}</a></div>`;
-                            // Post metadata
-                            html += `<div class="post-meta">`;
-                            html += `<span>r/${post.subreddit || 'unknown'}</span>`;
-                            html += `<span>${postDate}</span>`;
-                            html += `<span>Reddit Score: ${post.score !== undefined ? post.score : 'N/A'}</span>`;
-                            html += `<span><span class="sentiment-label">Sentiment: </span><span class="sentiment-value">${sentimentScoreText} (${sentimentText})</span></span>`;
-                            html += `</div>`; // End post-meta
+                        // Neutral Posts Section
+                        html += `<div class="post-category-section neutral">`;
+                        html += `<h3>Neutral Posts (${sentiment.neutral_posts?.length || 0})</h3>`;
+                        html += renderPosts(sentiment.neutral_posts, 'neutral');
+                        html += `</div>`;
 
-                            // Display post text (cleaned)
-                            if (post.text) {
-                                // Basic sanitization to prevent HTML injection
-                                const sanitizedText = post.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                                html += `<div class="post-text">${sanitizedText}</div>`;
-                            } else if (post.url && !post.text) {
-                                html += `<div class="post-text" style="color: var(--text-muted);"><i>(Link post, content on Reddit)</i></div>`;
-                            }
-                            html += '</div>'; // End post
-                        });
-                    } else if (sentiment.post_count > 0) {
-                        // If posts were analyzed but none made it to 'top_posts'
-                        html += '<p style="color: var(--text-muted);">No specific top posts to display based on current criteria (e.g., score).</p>';
+                        // Negative Posts Section
+                        html += `<div class="post-category-section negative">`;
+                        html += `<h3>Negative Posts (${sentiment.negative_posts?.length || 0})</h3>`;
+                        html += renderPosts(sentiment.negative_posts, 'negative');
+                        html += `</div>`;
                     }
+                    // If post_count is 0, no need for explicit message here as the initial fetch check handles it
 
 
                 } else if (sentiment && sentiment.error) {
-                    // Handle case where sentiment analysis failed
+                    // Handle case where sentiment analysis failed internally
                     html += `<div class="error">⚠️ Sentiment analysis error: ${sentiment.error}</div>`;
                 } else if (data.message) {
-                    // Handle case where no posts were found
+                    // Handle case where no posts were found (already checked above, but good fallback)
                     html += `<div class="info-message">ℹ️ ${data.message}</div>`;
-
                 } else if (!data.sentiment) {
                     // Handle case where sentiment key is missing entirely
                     html += `<div class="error">⚠️ Analysis response missing sentiment data.</div>`;
@@ -495,7 +562,7 @@
 
 
                 // Add a small footer/note
-                html += '<p style="text-align: center; font-size: 0.85em; color: var(--text-muted); margin-top: 30px;">Sentiment analysis based on recent Reddit posts. Interpretation may vary.</p>';
+                html += '<p style="text-align: center; font-size: 0.85em; color: var(--text-muted); margin-top: 30px;">Sentiment analysis based on Reddit posts. Interpretation may vary.</p>';
 
                 resultsDiv.innerHTML = html;
 

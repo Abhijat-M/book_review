@@ -6,24 +6,24 @@ from dotenv import load_dotenv
 from textblob import TextBlob
 import re
 import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer 
+from nltk.sentiment import SentimentIntensityAnalyzer
 
 
 try:
     nltk.data.find('sentiment/vader_lexicon.zip')
-except LookupError: 
+except LookupError:
     print("NLTK 'vader_lexicon' not found. Downloading...")
     nltk.download('vader_lexicon')
 try:
     nltk.data.find('corpora/wordnet')
-except LookupError: 
+except LookupError:
     print("NLTK 'wordnet' not found. Downloading...")
     nltk.download('wordnet')
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
     print("NLTK 'punkt' not found. Downloading...")
-    nltk.download('punkt') 
+    nltk.download('punkt')
 
 load_dotenv()
 
@@ -41,7 +41,7 @@ class ReviewSentimentAnalyzer:
             print(f"ERROR: Failed to initialize Reddit API: {e}")
             print("Ensure correct Reddit credentials are in .env file.")
             self.reddit = None
-        # Initialize both VADER and TextBlob for comparison or flexibility
+        # Initialize VADER
         self.sia = SentimentIntensityAnalyzer()
         # TextBlob is implicitly used in get_sentiment_score_textblob
 
@@ -52,7 +52,7 @@ class ReviewSentimentAnalyzer:
         text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
         text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text) # Remove markdown links but keep text
         # Keep basic punctuation that might affect sentiment (like !, ?)
-        text = re.sub(r'[^a-zA-Z0-9\s.,!?\'\"-]', '', text) 
+        text = re.sub(r'[^a-zA-Z0-9\s.,!?\'\"-]', '', text)
         text = re.sub(r'<.*?>', '', text) # Remove HTML tags if any
         return text.strip()
 
@@ -80,7 +80,7 @@ class ReviewSentimentAnalyzer:
 
         posts = []
         # Broader subreddits for books
-        subreddit_list = 'books+suggestmeabook+literature+bookclub+sci-fi+fantasy+printsf' 
+        subreddit_list = 'books+suggestmeabook+literature+bookclub+sci-fi+fantasy+printsf'
         print(f"Searching Reddit for '{query}' in subreddits: {subreddit_list}...")
 
         try:
@@ -95,16 +95,16 @@ class ReviewSentimentAnalyzer:
                  if len(cleaned_full_text) < 30: # Skip very short posts
                      continue
 
-                 # Calculate sentiment using VADER 
+                 # Calculate sentiment using VADER
                  sentiment_score = self.get_sentiment_score_vader(cleaned_full_text)
                  sentiment_score_tb = self.get_sentiment_score_textblob(cleaned_full_text)
-            
+
 
                  posts.append({
                      'title': post.title,
                      'text': post.selftext,
                      'score': post.score,
-                     'sentiment': sentiment_score, 
+                     'sentiment': sentiment_score,
                      'sentiment_textblob': sentiment_score_tb, # Optionally store TextBlob score
                      'created_utc': datetime.fromtimestamp(post.created_utc).strftime('%Y-%m-%d %H:%M:%S'),
                      'url': f'https://reddit.com{post.permalink}',
@@ -113,47 +113,50 @@ class ReviewSentimentAnalyzer:
             print(f"Found and processed {len(posts)} relevant posts.")
         except Exception as e:
             print(f"Error fetching or processing Reddit posts for '{query}': {str(e)}")
-            
+
             return pd.DataFrame()
         return pd.DataFrame(posts)
 
-   
+
     def analyze_sentiment(self, query):
-        """Analyzes overall sentiment for a book/author query."""
+        """Analyzes overall sentiment and categorizes all posts.""" # Updated docstring
         posts_df = self.get_reddit_reviews(query)
 
         if posts_df.empty:
-            # Check if the DataFrame is empty because of an API error or no posts found
             if not self.reddit:
                  return {
                      'success': False,
                      'error': 'Reddit API initialization failed. Check credentials.'
                  }
             else:
+                 # Return specific message when no posts are found
                  return {
-                    'success': False, # Indicate failure, but not necessarily an error
+                    'success': False, # Still indicate failure/lack of data
                     'message': f'No relevant Reddit posts found for "{query}" in the searched subreddits.',
                     'average_sentiment': 0,
                     'post_count': 0,
                     'sentiment_distribution': {},
-                    'top_posts': []
+                    # Return empty lists
+                    'positive_posts': [],
+                    'neutral_posts': [],
+                    'negative_posts': []
                  }
 
         avg_sentiment = posts_df['sentiment'].mean()
 
         # Categorize sentiment
         posts_df['sentiment_category'] = posts_df['sentiment'].apply(
-            
             lambda x: 'positive' if x >= 0.05 else ('negative' if x <= -0.05 else 'neutral')
         )
         sentiment_counts = posts_df['sentiment_category'].value_counts().to_dict()
 
-        # Get top posts (e.g., by score, or maybe filter for more opinionated posts)
-        # Sorting by absolute sentiment score might find more opinionated posts
-        #posts_df['abs_sentiment'] = posts_df['sentiment'].abs()
-        #top_posts = posts_df.nlargest(5, 'abs_sentiment').to_dict('records')
-        
-        top_posts = posts_df.nlargest(5, 'score').to_dict('records')
+    
+        # Sort posts within each category, e.g., by score descending for relevance
+        posts_df = posts_df.sort_values(by='score', ascending=False)
+
+        positive_posts = posts_df[posts_df['sentiment_category'] == 'positive'].to_dict('records')
+        neutral_posts = posts_df[posts_df['sentiment_category'] == 'neutral'].to_dict('records')
+        negative_posts = posts_df[posts_df['sentiment_category'] == 'negative'].to_dict('records')
 
 
         return {
@@ -161,5 +164,8 @@ class ReviewSentimentAnalyzer:
             'average_sentiment': float(avg_sentiment),
             'post_count': len(posts_df),
             'sentiment_distribution': sentiment_counts,
-            'top_posts': top_posts
+            # Return categorized lists
+            'positive_posts': positive_posts,
+            'neutral_posts': neutral_posts,
+            'negative_posts': negative_posts
         }
