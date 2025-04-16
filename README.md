@@ -4,7 +4,7 @@ This project analyzes Reddit sentiment towards books. It uses natural language p
 
 ## Live Project
 
-Check out the live project here: [https://your-live-project-link.com](https://your-live-project-link.com)
+Check out the live project here: [https://book-sentiment-analysis.onrender.com/](https://book-sentiment-analysis.onrender.com/)
 
 ## Setup
 
